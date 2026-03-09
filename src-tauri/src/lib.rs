@@ -90,7 +90,8 @@ pub async fn run() {
         .fallback_service(static_service)
         .layer(cors);
 
-    let addr = "127.0.0.1:8080";
+    let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string());
+    let addr = format!("127.0.0.1:{}", port);
     log::info!("Listening on http://{}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr)
