@@ -1,0 +1,59 @@
+[package]
+name = "OpenCovibe"
+version = "0.1.25"
+edition = "2021"
+description = "Local-first web app for AI-assisted vibe coding"
+license = "Apache-2.0"
+repository = "https://github.com/AnyiWang/OpenCovibe"
+homepage = "https://github.com/AnyiWang/OpenCovibe"
+
+[lib]
+name = "opencovibe_desktop_lib"
+crate-type = ["lib"]
+
+[[bin]]
+name = "opencovibe-server"
+path = "src/main.rs"
+
+[dependencies]
+axum = { version = "0.8", features = ["ws", "multipart"] }
+tower-http = { version = "0.6", features = ["cors", "fs", "trace"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+tokio = { version = "1", features = ["full"] }
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
+base64 = "0.22"
+portable-pty = "0.8"
+strip-ansi-escapes = "0.2"
+notify = "7"
+reqwest = { version = "0.12", features = ["json", "stream"] }
+futures-util = "0.3"
+tokio-util = { version = "0.7", features = ["rt"] }
+log = "0.4"
+env_logger = "0.11"
+sha2 = "0.10"
+url = "2"
+mime_guess = "2.0"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61", features = [
+    "Win32_Foundation",
+    "Win32_System_DataExchange",
+    "Win32_System_Ole",
+    "Win32_UI_Shell",
+] }
+
+[dev-dependencies]
+tempfile = "3"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true
