@@ -60,6 +60,37 @@ export function cwdDisplayLabel(cwd: string): string {
   return parts[parts.length - 1] || "/";
 }
 
+/** Fallback context window size (tokens) when the backend doesn't report one. */
+const MODEL_CONTEXT_WINDOWS: [RegExp, number][] = [
+  [/opus-4[.-][56]/, 200_000],
+  [/opus/, 200_000],
+  [/sonnet-4/, 200_000],
+  [/sonnet-3[.-]5/, 200_000],
+  [/sonnet/, 200_000],
+  [/haiku/, 200_000],
+  [/claude-3/, 200_000],
+  [/claude/, 200_000],
+  [/gpt-4o/, 128_000],
+  [/gpt-4-turbo/, 128_000],
+  [/gpt-4/, 128_000],
+  [/o1|o3|o4/, 200_000],
+  [/deepseek/, 128_000],
+  [/kimi/, 128_000],
+  [/qwen/, 128_000],
+  [/gemini/, 1_000_000],
+];
+
+/** Get the context window size for a model. Uses the reported value if > 0, otherwise falls back to a known default. */
+export function getContextWindowForModel(model: string, reported: number): number {
+  if (reported > 0) return reported;
+  if (!model) return 0;
+  const m = model.toLowerCase();
+  for (const [re, size] of MODEL_CONTEXT_WINDOWS) {
+    if (re.test(m)) return size;
+  }
+  return 200_000; // safe default for unknown models
+}
+
 /** Format an install count with K/M suffix (e.g. 160242 → "160K"). */
 export function formatInstallCount(count: number): string {
   if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;

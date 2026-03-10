@@ -44,7 +44,6 @@ src-tauri/target */
 .turbo/
 
 # Claude Code (local dev context)
-CLAUDE.md
 AGENTS.md
 /memory/
 .claude/

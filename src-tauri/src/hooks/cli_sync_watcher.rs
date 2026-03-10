@@ -1,4 +1,4 @@
-//! Background task: auto-discover and sync Claude CLI sessions every 10 seconds.
+//! Background task: auto-discover and sync Claude CLI sessions every 1 second.
 
 use crate::app_state::AppState;
 use crate::storage::cli_sessions;
@@ -8,7 +8,7 @@ use tokio_util::sync::CancellationToken;
 /// Spawn a tokio task that periodically discovers and syncs CLI sessions.
 pub fn start_cli_sync_watcher(state: Arc<AppState>, cancel: CancellationToken) {
     tokio::spawn(async move {
-        log::info!("[cli_sync_watcher] started (interval=10s)");
+        log::info!("[cli_sync_watcher] started (interval=1s)");
 
         loop {
             tokio::select! {
@@ -16,7 +16,7 @@ pub fn start_cli_sync_watcher(state: Arc<AppState>, cancel: CancellationToken) {
                     log::info!("[cli_sync_watcher] shutting down");
                     break;
                 }
-                _ = tokio::time::sleep(std::time::Duration::from_secs(10)) => {
+                _ = tokio::time::sleep(std::time::Duration::from_secs(1)) => {
                     if let Err(e) = run_sync_cycle(&state).await {
                         log::warn!("[cli_sync_watcher] sync cycle error: {}", e);
                     }
@@ -40,7 +40,7 @@ async fn run_sync_cycle(state: &Arc<AppState>) -> Result<(), String> {
             }
         };
 
-        let mut changed = false;
+        let mut changed_run_ids: Vec<String> = Vec::new();
 
         for session in &sessions {
             if session.already_imported {
@@ -55,7 +55,7 @@ async fn run_sync_cycle(state: &Arc<AppState>) -> Result<(), String> {
                                     result.new_events,
                                     result.meta_updated
                                 );
-                                changed = true;
+                                changed_run_ids.push(run_id.clone());
                             }
                         }
                         Err(e) => {
@@ -81,7 +81,7 @@ async fn run_sync_cycle(state: &Arc<AppState>) -> Result<(), String> {
                             result.run_id,
                             result.events_imported
                         );
-                        changed = true;
+                        changed_run_ids.push(result.run_id.clone());
                     }
                     Err(e) => {
                         log::debug!(
@@ -94,11 +94,14 @@ async fn run_sync_cycle(state: &Arc<AppState>) -> Result<(), String> {
             }
         }
 
-        if changed {
-            // Notify frontend to refresh the sidebar
+        if !changed_run_ids.is_empty() {
+            // Notify frontend with changed run IDs so it can refresh the active chat
             state2.emit(
                 "cli-sync-update",
-                &serde_json::json!({"type": "auto-sync"}),
+                &serde_json::json!({
+                    "type": "auto-sync",
+                    "changed_run_ids": changed_run_ids
+                }),
             );
         }
 

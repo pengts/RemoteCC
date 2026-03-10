@@ -219,6 +219,9 @@ export class SessionStore {
   /** Per-session platform_id — set before first message, locked after. */
   platformId = $state<string | null>(null);
 
+  /** Track the max bus event seq processed so far (for incremental sync). */
+  private _maxBusSeq = 0;
+
   /** True while stop() is in progress — suppresses RunState error display from dying CLI. */
   private _stopping = false;
 
@@ -805,7 +808,48 @@ export class SessionStore {
         this.run = { ...this.run, ...updates };
       }
     }
+    // Track max seq for incremental sync
+    for (const ev of events) {
+      const seq = (ev as Record<string, unknown>)._seq;
+      if (typeof seq === "number" && seq > this._maxBusSeq) {
+        this._maxBusSeq = seq;
+      }
+    }
     return performance.now() - t0;
+  }
+
+  /** Incremental refresh: fetch new bus events since last load and apply them.
+   *  Used when CLI sync detects new events for the currently viewed session. */
+  async refreshFromSync(): Promise<number> {
+    if (!this.run) return 0;
+    // Skip if session is alive (web-spawned process is active)
+    if (this.sessionAlive) return 0;
+
+    const runId = this.run.id;
+    try {
+      const newEvents = await api.getBusEvents(runId, this._maxBusSeq);
+      if (newEvents.length === 0) return 0;
+
+      dbg("store", "refreshFromSync", {
+        runId,
+        sinceSeq: this._maxBusSeq,
+        newEvents: newEvents.length,
+      });
+
+      this.applyEventBatch(newEvents, { replayOnly: true });
+
+      // Refresh run meta (status, name, etc. may have changed)
+      const updatedRun = await api.getRun(runId);
+      if (updatedRun) {
+        this.run = updatedRun;
+        this.model = updatedRun.model || this.model;
+      }
+
+      return newEvents.length;
+    } catch (e) {
+      dbg("store", "refreshFromSync error", String(e));
+      return 0;
+    }
   }
 
   /** Apply a hook event (from hook-event Tauri listener). */
@@ -869,6 +913,7 @@ export class SessionStore {
     this.thinkingStartMs = 0;
     this.thinkingEndMs = 0;
     this.tools = [];
+    this._maxBusSeq = 0;
     this.usage = {
       inputTokens: 0,
       outputTokens: 0,

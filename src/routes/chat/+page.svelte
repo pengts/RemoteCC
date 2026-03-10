@@ -56,6 +56,7 @@
   import MarkdownContent from "$lib/components/MarkdownContent.svelte";
   import HookReviewCard from "$lib/components/HookReviewCard.svelte";
   import CliSessionBrowser from "$lib/components/CliSessionBrowser.svelte";
+  import ChatStatusLine from "$lib/components/ChatStatusLine.svelte";
   import ContextUsageGrid from "$lib/components/ContextUsageGrid.svelte";
   import CostSummaryView from "$lib/components/CostSummaryView.svelte";
   import { parseContextMarkdown } from "$lib/utils/context-parser";
@@ -935,6 +936,17 @@
     const handler = () => checkProjectInit();
     window.addEventListener("ocv:project-changed", handler);
     return () => window.removeEventListener("ocv:project-changed", handler);
+  });
+
+  // Auto-refresh chat when CLI sync detects new events for the current session
+  onMount(() => {
+    const handler = (e: Event) => {
+      const ids = (e as CustomEvent<string[]>).detail;
+      if (!store.run || !ids?.includes(store.run.id)) return;
+      store.refreshFromSync();
+    };
+    window.addEventListener("ocv:cli-sync-runs", handler);
+    return () => window.removeEventListener("ocv:cli-sync-runs", handler);
   });
 
   // Check for pending plan from ExitPlanMode "clear context"
@@ -3763,6 +3775,23 @@
       >
         {getResumeWarning(store.run)}
       </div>
+    {/if}
+
+    <!-- Status line -->
+    {#if store.run}
+      <ChatStatusLine
+        model={store.model}
+        cwd={store.effectiveCwd || ""}
+        run={store.run}
+        inputTokens={store.usage.inputTokens}
+        outputTokens={store.usage.outputTokens}
+        cacheReadTokens={store.usage.cacheReadTokens}
+        cacheWriteTokens={store.usage.cacheWriteTokens}
+        cost={store.usage.cost}
+        contextWindow={store.contextWindow}
+        contextUtilization={store.contextUtilization}
+        durationMs={store.durationMs}
+      />
     {/if}
 
     <!-- Input bar -->

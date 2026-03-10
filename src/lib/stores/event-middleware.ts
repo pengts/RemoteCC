@@ -176,6 +176,11 @@ export class EventMiddleware {
         break;
       case "cli-sync-update":
         window.dispatchEvent(new Event("ocv:runs-changed"));
+        if (payload?.changed_run_ids) {
+          window.dispatchEvent(
+            new CustomEvent("ocv:cli-sync-runs", { detail: payload.changed_run_ids }),
+          );
+        }
         break;
       default:
         dbg("middleware", "unhandled event:", eventName);

@@ -7,6 +7,7 @@
   import { getCliModels } from "$lib/stores/cli-info.svelte";
   import { t } from "$lib/i18n/index.svelte";
   import { fmtNumber } from "$lib/i18n/format";
+  import { getContextWindowForModel } from "$lib/utils/format";
 
   let {
     run = null,
@@ -487,8 +488,13 @@
       {/if}
 
       <!-- Context bar (Tier 1 — always visible when available) -->
-      {#if contextWindow && contextWindow > 0 && contextUtilization != null}
-        {@const pct = Math.round(contextUtilization * 100)}
+      {#if getContextWindowForModel(model, contextWindow ?? 0) > 0}
+        {@const effectiveCtxWindow = getContextWindowForModel(model, contextWindow ?? 0)}
+        {@const pct = contextUtilization != null && contextUtilization > 0
+          ? Math.round(contextUtilization * 100)
+          : ((inputTokens ?? 0) + (cacheReadTokens ?? 0) + (cacheWriteTokens ?? 0) > 0
+            ? Math.round(((inputTokens ?? 0) + (cacheReadTokens ?? 0) + (cacheWriteTokens ?? 0)) / effectiveCtxWindow * 100)
+            : 0)}
         {@const barColor =
           contextWarningLevel === "critical"
             ? "bg-orange-500"
@@ -510,7 +516,7 @@
           class="flex items-center gap-1.5 shrink-0 {textColor}"
           title={t("statusbar_contextTitle", {
             pct: String(pct),
-            tokens: contextWindow ? fmtNumber(contextWindow) : "",
+            tokens: effectiveCtxWindow ? fmtNumber(effectiveCtxWindow) : "",
           })}
         >
           <span class="inline-flex h-1.5 w-12 rounded-full bg-foreground/10 overflow-hidden">

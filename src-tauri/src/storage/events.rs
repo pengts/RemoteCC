@@ -599,9 +599,12 @@ pub fn list_bus_events(run_id: &str, since_seq: Option<u64>) -> Vec<serde_json::
                         return None;
                     }
                     let mut event = event.clone();
-                    // Inject envelope timestamp into event so frontend can display it
-                    if let (Some(ts), Some(obj)) = (v.get("ts"), event.as_object_mut()) {
-                        obj.insert("ts".to_string(), ts.clone());
+                    // Inject envelope fields into event for frontend use
+                    if let Some(obj) = event.as_object_mut() {
+                        if let Some(ts) = v.get("ts") {
+                            obj.insert("ts".to_string(), ts.clone());
+                        }
+                        obj.insert("_seq".to_string(), serde_json::Value::Number(seq.into()));
                     }
                     return Some(event);
                 }
